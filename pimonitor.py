@@ -30,11 +30,13 @@ def check_website(url):
 
 def main():
     url = "https://www.etsy.com/uk/shop/" + ETSY_ACCOUNT
-    sleeptime = 60
+    sleeptime = 45
     counter = 1
-    expected_items = "1"
+    max_messages = 10
+    message_count = 0
+    expected_items = "0"
 
-    while True:
+    while message_count < max_messages:
         current_items = check_website(url)
         current_time = time.strftime("%H:%M:%S", time.localtime())
         print("{} ({}): Currently Available: {}".format(
@@ -43,8 +45,10 @@ def main():
             msg = "Now available: {}\n {}".format(current_items, url)
             send_message(msg, PRIVATE_NUMBER)
             expected_items = current_items
+            message_count = message_count + 1
         time.sleep(sleeptime + random.randint(0, 9))
         counter = counter + 1
+    send_message("Reset me", PRIVATE_NUMBER)
 
 
 main()
