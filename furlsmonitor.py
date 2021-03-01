@@ -1,11 +1,15 @@
 import random
 import requests
 import time
+import json
 
-from bs4 import BeautifulSoup
 from config import PRIVATE_NUMBER, TWILIO_NUMBER, TWILIO_ACCOUNT_SID, \
-    TWILIO_AUTH_TOKEN, ETSY_ACCOUNT
+    TWILIO_AUTH_TOKEN
 from twilio.rest import Client
+
+
+class ListValueException(Exception):
+    pass
 
 
 def send_message(msg, number):
@@ -24,27 +28,31 @@ def check_website(url):
                'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95'
                'Safari/537.36'}
     response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.text, "html.parser")
-    return soup.find_all(class_="wt-mr-md-2")[0].get_text()
+    data = json.loads(response.text)
+
+    for item in data['product']['variants']:
+        if (item['title'] == 'Purpleheart: Size D - 3.25mm'):
+            return item['inventory_quantity']
+    raise ListValueException("Purpleheart 3.25 not in list")
 
 
 def main():
-    url = "https://www.etsy.com/uk/shop/" + ETSY_ACCOUNT
+    url = "https://furlscrochet.com/products/alpha-series-wood-crochet-hook.json"
     sleeptime = 45
     counter = 1
     max_messages = 10
     message_count = 0
-    expected_items = "0"
+    expected_inventory = -1
 
     while message_count < max_messages:
-        current_items = check_website(url)
+        current_inventory = check_website(url)
         current_time = time.strftime("%H:%M:%S", time.localtime())
         print("{} ({}): Currently Available: {}".format(
-              current_time, counter, current_items))
-        if current_items != expected_items:
-            msg = "Now available: {}\n {}".format(current_items, url)
+              current_time, counter, current_inventory))
+        if current_inventory != expected_inventory:
+            msg = "Now available: {}\n {}".format(current_inventory, url)
             send_message(msg, PRIVATE_NUMBER)
-            expected_items = current_items
+            expected_inventory = current_inventory
             message_count = message_count + 1
         time.sleep(sleeptime + random.randint(0, 9))
         counter = counter + 1
@@ -53,6 +61,14 @@ def main():
 
 try:
     main()
+except ListValueException as e:
+    send_message("Furls: ListValueException")
+except KeyboardInterrupt:
+    print('Interrupted')
+    try:
+        sys.exit(0)
+    except SystemExit:
+        os._exit(0)
 except:
     send_message("Error", PRIVATE_NUMBER)
     raise
